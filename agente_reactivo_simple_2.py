@@ -44,24 +44,39 @@ class Entorno:
 class AgenteReactivo:
 
     def __init__(self, entorno):
-        self.entorno     = entorno
-        self.y           = random.randint(1, entorno.n)   # fila inicial
-        self.x           = random.randint(1, entorno.m)   # columna inicial
-        self.visitado    = []
-        self.brujula     = ['N', 'E', 'S', 'O']
-        self.orientacion = random.choice(self.brujula)    # dirección inicial
+        self.entorno          = entorno
+        self.y                = random.randint(1, entorno.n)
+        self.x                = random.randint(1, entorno.m)
+        self.brujula          = ['N', 'E', 'S', 'O']
+        self.orientacion      = random.choice(self.brujula)
+        self.visitados        = []   # (x, y, orientacion)
+        self.cvisitados       = []   # (x, y) sin repetir
+        self.totalinfovisitados = [] # (x, y, orientacion, actual, f_izq, f_cen, f_der)
+        self.registrar_posicion()
 
     # Sirve para guardar la posicion y orientación del robot
     def registrar_posicion(self):
-        posicion = (self.x,self.y,self.orientacion)
-        self.visitado.append(posicion)
+        percepcion = self.percibir()
+        posicion   = (self.x, self.y, self.orientacion)
+        cuadro     = (self.x, self.y)
+        total      = (self.x, self.y, self.orientacion,
+                      percepcion[0], percepcion[1], percepcion[2], percepcion[3])
+        self.visitados.append(posicion)
+        if cuadro not in self.cvisitados:
+            self.cvisitados.append(cuadro)
+        self.totalinfovisitados.append(total)
+
     # Sirve para verificar si la nueva posicion ya ha sido visitada con la misma orientación
     def watch_dog(self):
-        nueva_posicion = (self.x,self.y,self.orientacion)
-        if nueva_posicion in self.visitado:
-          return True
-        else:
-          return False
+        nueva_posicion = (self.x, self.y, self.orientacion)
+        return nueva_posicion in self.visitados
+
+    # Sirve para comparar los cuadros visitados entre el total de cuadros
+    def desempeno_agente(self):
+        porcentaje = sum(fila.count(0) for fila in self.cvisitados) * 100 / len(self.cvisitados)
+        mensaje = f"El desempeno del agente fue: {porcentaje:.1f}%"
+        print(mensaje)
+        return mensaje
 
     def percibir(self):
         # Offsets de las 3 cámaras frontales según orientación
@@ -177,122 +192,141 @@ def guardar_registro(registro):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# PROGRAMA PRINCIPAL CON PYGAME
+# CONFIGURACIÓN
 # ─────────────────────────────────────────────────────────────────────────────
 
-# ── Configuración ─────────────────────────────────────────────────────────────
-N         = 15    # filas del tablero interior
-M         = 15    # columnas del tablero interior
-TAM       = 36    # tamaño de cada celda en píxeles
-VELOCIDAD = 10     # pasos por segundo
+N         = 15
+M         = 15
+TAM       = 36
+VELOCIDAD = 10
 
-# ── Colores RGB ───────────────────────────────────────────────────────────────
-OSCURO = (40,  40,  40)    # celda 0 → gris oscuro
-CLARO  = (210, 210, 210)   # celda 1 → gris claro
-PARED  = (160, 50,  50)    # celda 2 → rojo
-AGENTE = (50,  120, 255)   # triángulo del agente → azul
+OSCURO = (40,  40,  40)
+CLARO  = (210, 210, 210)
+PARED  = (160, 50,  50)
+AGENTE = (50,  120, 255)
 
-# ── Crear entorno y agente ────────────────────────────────────────────────────
-mi_entorno = Entorno(N, M)
-mi_agente  = AgenteReactivo(mi_entorno)
+# ─────────────────────────────────────────────────────────────────────────────
+# PROGRAMA PRINCIPAL
+# ─────────────────────────────────────────────────────────────────────────────
 
-# ── Iniciar pygame ────────────────────────────────────────────────────────────
-pygame.init()
+if __name__ == "__main__":
 
-filas  = mi_entorno.malla.shape[0]   # N + 2 (con paredes)
-cols   = mi_entorno.malla.shape[1]   # M + 2
-ANCHO  = cols  * TAM
-ALTO   = filas * TAM + 40            # +40px para texto inferior
+    # ── Prueba en consola (primeros 5 pasos) ──────────────────────────────────
+    mi_entorno = Entorno(N, M)
+    mi_agente  = AgenteReactivo(mi_entorno)
 
-ventana = pygame.display.set_mode((ANCHO, ALTO))
-pygame.display.set_caption("Agente Reactivo Simple")
+    print("--- ESTADO INICIAL ---")
+    mi_entorno.mostrar()
 
-fuente = pygame.font.SysFont("monospace", 14)
-reloj  = pygame.time.Clock()
-
-paso     = 0
-accion   = "-"
-detenido = False
-registro = []
-
-# ── Bucle principal ───────────────────────────────────────────────────────────
-while True:
-
-    # 1. Cerrar ventana con la X
-    for evento in pygame.event.get():
-        if evento.type == pygame.QUIT:
-            pygame.quit()
-            sys.exit()
-
-    # 2. Un paso del agente: percibir → decidir → ejecutar (solo si no está detenido)
-    if not detenido:
-        percepcion           = mi_agente.percibir()
-        actual, f_izq, f_cen, f_der = percepcion
-        pos_antes            = (mi_agente.x, mi_agente.y)
-        ori_antes            = mi_agente.orientacion
-
-        accion, regla = mi_agente.decidir_accion(percepcion)
+    for paso in range(1, 6):
+        if len(mi_agente.cvisitados) == M * N:
+            print(f"Se visitaron todas las posiciones del entorno: {len(mi_agente.cvisitados)}")
+            break
+        percepcion  = mi_agente.percibir()
+        accion, _   = mi_agente.decidir_accion(percepcion)   # FIX 1: desempacar tupla
+        print(f"\n--- PASO {paso} ---")
+        print(f"Posicion: ({mi_agente.x}, {mi_agente.y})  Orientacion: {mi_agente.orientacion}")
+        print(f"Percibe: {percepcion}")
+        print(f"Decide: {accion}")
         mi_agente.ejecutar_accion(accion)
-        paso += 1
-
-        registro.append({
-            'Numero'     : f"{paso:02d}",
-            'Posicion'   : f"({pos_antes[0]},{pos_antes[1]})",
-            'Orientacion': ori_antes,
-            'f_izq'      : f_izq,
-            'f_cen'      : f_cen,
-            'f_der'      : f_der,
-            'Regla'      : regla,
-            'Accion'     : accion,
-            'Pos_nueva'  : f"({mi_agente.x},{mi_agente.y})",
-            'Ori_nueva'  : mi_agente.orientacion,
-        })
-
         if mi_agente.watch_dog():
-            detenido = True
-            guardar_registro(registro)
+            break
         else:
             mi_agente.registrar_posicion()
 
-    # 3. Dibujar el tablero celda por celda
-    ventana.fill((20, 20, 20))
+    mi_agente.desempeno_agente()
 
-    for fila in range(filas):
-        for col in range(cols):
-            valor = mi_entorno.malla[fila, col]
+    # ── Simulación visual con pygame ──────────────────────────────────────────
+    mi_entorno = Entorno(N, M)
+    mi_agente  = AgenteReactivo(mi_entorno)
 
-            if   valor == 0: color = OSCURO
-            elif valor == 1: color = CLARO
-            else:            color = PARED
+    pygame.init()
 
-            # Dibujar rectángulo con separación de 1px entre celdas
-            pygame.draw.rect(
-                ventana, color,
-                (col * TAM, fila * TAM, TAM - 1, TAM - 1)
-            )
+    filas  = mi_entorno.malla.shape[0]
+    cols   = mi_entorno.malla.shape[1]
+    ANCHO  = cols  * TAM
+    ALTO   = filas * TAM + 40
 
-    # 4. Dibujar agente como triángulo apuntando en su dirección
-    cx = mi_agente.x * TAM + TAM // 2
-    cy = mi_agente.y * TAM + TAM // 2
-    r  = TAM // 2 - 4
+    ventana = pygame.display.set_mode((ANCHO, ALTO))
+    pygame.display.set_caption("Agente Reactivo Simple")
 
-    puntos = {
-        'N': [(cx, cy-r), (cx-r, cy+r), (cx+r, cy+r)],
-        'S': [(cx, cy+r), (cx-r, cy-r), (cx+r, cy-r)],
-        'E': [(cx+r, cy), (cx-r, cy-r), (cx-r, cy+r)],
-        'O': [(cx-r, cy), (cx+r, cy-r), (cx+r, cy+r)],
-    }
-    pygame.draw.polygon(ventana, AGENTE, puntos[mi_agente.orientacion])
+    fuente = pygame.font.SysFont("monospace", 14)
+    reloj  = pygame.time.Clock()
 
-    # 5. Texto informativo en la franja inferior
-    info  = f"Paso: {paso}  |  Accion: {accion}  |  Pos: ({mi_agente.x},{mi_agente.y})  |  Dir: {mi_agente.orientacion}"
-    texto = fuente.render(info, True, (255, 255, 255))
-    ventana.blit(texto, (8, ALTO - 30))
+    paso          = 0
+    accion        = "-"
+    detenido      = False
+    registro      = []
+    msg_desempeno = ""
 
-    if detenido:
-        aviso = fuente.render("CICLO DETECTADO — simulacion detenida", True, (255, 80, 80))
-        ventana.blit(aviso, (ANCHO // 2 - aviso.get_width() // 2, ALTO // 2 - aviso.get_height() // 2))
+    while True:
 
-    # 6. Actualizar pantalla y controlar velocidad
-    pygame.display.flip()
-    reloj.tick(VELOCIDAD)
+        for evento in pygame.event.get():
+            if evento.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+
+        if not detenido:
+            percepcion                    = mi_agente.percibir()
+            actual, f_izq, f_cen, f_der   = percepcion
+            pos_antes                     = (mi_agente.x, mi_agente.y)
+            ori_antes                     = mi_agente.orientacion
+
+            accion, regla = mi_agente.decidir_accion(percepcion)
+            mi_agente.ejecutar_accion(accion)
+            paso += 1
+
+            registro.append({
+                'Numero'     : f"{paso:02d}",
+                'Posicion'   : f"({pos_antes[0]},{pos_antes[1]})",
+                'Orientacion': ori_antes,
+                'f_izq'      : f_izq,
+                'f_cen'      : f_cen,
+                'f_der'      : f_der,
+                'Regla'      : regla,
+                'Accion'     : accion,
+                'Pos_nueva'  : f"({mi_agente.x},{mi_agente.y})",
+                'Ori_nueva'  : mi_agente.orientacion,
+            })
+
+            if mi_agente.watch_dog():
+                detenido      = True
+                msg_desempeno = mi_agente.desempeno_agente()
+                guardar_registro(registro)
+            else:
+                mi_agente.registrar_posicion()
+
+        ventana.fill((20, 20, 20))
+
+        for fila in range(filas):
+            for col in range(cols):
+                valor = mi_entorno.malla[fila, col]
+                if   valor == 0: color = OSCURO
+                elif valor == 1: color = CLARO
+                else:            color = PARED
+                pygame.draw.rect(ventana, color, (col * TAM, fila * TAM, TAM - 1, TAM - 1))
+
+        cx = mi_agente.x * TAM + TAM // 2
+        cy = mi_agente.y * TAM + TAM // 2
+        r  = TAM // 2 - 4
+        puntos = {
+            'N': [(cx, cy-r), (cx-r, cy+r), (cx+r, cy+r)],
+            'S': [(cx, cy+r), (cx-r, cy-r), (cx+r, cy-r)],
+            'E': [(cx+r, cy), (cx-r, cy-r), (cx-r, cy+r)],
+            'O': [(cx-r, cy), (cx+r, cy-r), (cx+r, cy+r)],
+        }
+        pygame.draw.polygon(ventana, AGENTE, puntos[mi_agente.orientacion])
+
+        info  = f"Paso: {paso}  |  Accion: {accion}  |  Pos: ({mi_agente.x},{mi_agente.y})  |  Dir: {mi_agente.orientacion}"
+        texto = fuente.render(info, True, (255, 255, 255))
+        ventana.blit(texto, (8, ALTO - 30))
+
+        if detenido:
+            aviso    = fuente.render("CICLO DETECTADO — simulacion detenida", True, (255, 80, 80))
+            desmp    = fuente.render(msg_desempeno, True, (255, 220, 50))
+            centro_y = ALTO // 2 - aviso.get_height()
+            ventana.blit(aviso, (ANCHO // 2 - aviso.get_width() // 2, centro_y))
+            ventana.blit(desmp, (ANCHO // 2 - desmp.get_width() // 2, centro_y + aviso.get_height() + 6))
+
+        pygame.display.flip()
+        reloj.tick(VELOCIDAD)
