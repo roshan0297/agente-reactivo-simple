@@ -73,8 +73,9 @@ class AgenteReactivo:
 
     # Sirve para comparar los cuadros visitados entre el total de cuadros
     def desempeno_agente(self):
-        porcentaje = sum(fila.count(0) for fila in self.cvisitados) * 100 / len(self.cvisitados)
-        mensaje = f"El desempeno del agente fue: {porcentaje:.1f}%"
+        total_celdas = self.entorno.n * self.entorno.m
+        porcentaje   = len(self.cvisitados) * 100 / total_celdas
+        mensaje = f"El desempeno del agente fue: {porcentaje:.1f}% ({len(self.cvisitados)}/{total_celdas} celdas)"
         print(mensaje)
         return mensaje
 
