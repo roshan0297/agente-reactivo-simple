@@ -323,11 +323,28 @@ if __name__ == "__main__":
         ventana.blit(texto, (8, ALTO - 30))
 
         if detenido:
-            aviso    = fuente.render("CICLO DETECTADO — simulacion detenida", True, (255, 80, 80))
-            desmp    = fuente.render(msg_desempeno, True, (255, 220, 50))
-            centro_y = ALTO // 2 - aviso.get_height()
-            ventana.blit(aviso, (ANCHO // 2 - aviso.get_width() // 2, centro_y))
-            ventana.blit(desmp, (ANCHO // 2 - desmp.get_width() // 2, centro_y + aviso.get_height() + 6))
+            fuente_grande = pygame.font.SysFont("monospace", 20, bold=True)
+            txt_titulo = fuente_grande.render("CICLO DETECTADO", True, (255, 80,  80))
+            txt_sub    = fuente_grande.render("Simulacion detenida", True, (255, 255, 255))
+            txt_desemp = fuente_grande.render(msg_desempeno,         True, (255, 220, 50))
+
+            pad    = 24
+            ancho_caja = max(txt_titulo.get_width(), txt_sub.get_width(), txt_desemp.get_width()) + pad * 2
+            alto_caja  = txt_titulo.get_height() + txt_sub.get_height() + txt_desemp.get_height() + pad * 3 + 16
+            cx_caja    = (ANCHO - ancho_caja) // 2
+            cy_caja    = (ALTO  - alto_caja)  // 2
+
+            overlay = pygame.Surface((ANCHO, ALTO), pygame.SRCALPHA)
+            overlay.fill((0, 0, 0, 160))
+            ventana.blit(overlay, (0, 0))
+
+            pygame.draw.rect(ventana, (30, 30, 30),   (cx_caja, cy_caja, ancho_caja, alto_caja), border_radius=12)
+            pygame.draw.rect(ventana, (255, 80, 80),  (cx_caja, cy_caja, ancho_caja, alto_caja), width=3, border_radius=12)
+
+            y = cy_caja + pad
+            for superficie in [txt_titulo, txt_sub, txt_desemp]:
+                ventana.blit(superficie, (cx_caja + (ancho_caja - superficie.get_width()) // 2, y))
+                y += superficie.get_height() + 8
 
         pygame.display.flip()
         reloj.tick(VELOCIDAD)
