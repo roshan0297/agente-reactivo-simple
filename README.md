@@ -1,6 +1,6 @@
 # Agente Reactivo Simple
 
-Simulación visual de un agente reactivo que navega una malla aleatoria usando reglas de percepción. El agente detecta su entorno con 3 sensores frontales y decide si avanzar, girar a la derecha o girar a la izquierda. La simulación se detiene automáticamente cuando el agente entra en un ciclo, y guarda un registro completo de cada movimiento en un archivo CSV.
+Simulación visual de un agente reactivo que navega una malla aleatoria usando reglas de percepción. El agente detecta su entorno con 3 sensores frontales y decide si avanzar, girar a la derecha o girar a la izquierda. Al ejecutar el script, primero corre una prueba en consola de 5 pasos y luego abre la simulación visual. La simulación se detiene automáticamente cuando el agente entra en un ciclo, muestra el desempeño en pantalla y guarda un registro completo en CSV.
 
 ## Requisitos
 
@@ -18,6 +18,13 @@ pip install numpy pygame
 ```bash
 python agente_reactivo_simple_2.py
 ```
+
+## Flujo de ejecución
+
+Al correr el script suceden dos cosas en orden:
+
+1. **Prueba en consola** — imprime el estado inicial de la malla, ejecuta los primeros 5 pasos del agente y muestra el desempeño en la terminal.
+2. **Simulación visual** — abre una ventana pygame con un agente nuevo que navega hasta detectar un ciclo.
 
 ## Controles
 
@@ -39,11 +46,30 @@ El agente (triángulo azul) apunta hacia su dirección actual: Norte, Sur, Este 
 
 ## Comportamiento del agente
 
-El agente percibe las 3 celdas frente a él (izquierda, centro, derecha) y selecciona una acción según una tabla de reglas. Si detecta que volvió a una posición ya visitada con la misma orientación (**watchdog**), la simulación se pausa y queda la pantalla estática con el mensaje **"CICLO DETECTADO"**.
+El agente percibe las 3 celdas frente a él (izquierda, centro, derecha) y selecciona una acción según una tabla de reglas. Las acciones posibles son `AVANZAR`, `GIRAR_DERECHA` y `GIRAR_IZQUIERDA`.
+
+### Detección de ciclo (watchdog)
+
+El agente guarda un historial de posiciones visitadas `(x, y, orientacion)`. Si vuelve a la misma posición con la misma orientación, la simulación se pausa y muestra en pantalla:
+
+- Mensaje **"CICLO DETECTADO — simulacion detenida"** en rojo.
+- Mensaje de **desempeño del agente** en amarillo.
+
+### Desempeño del agente
+
+El agente mantiene tres registros internos:
+
+| Atributo | Contenido |
+|----------|-----------|
+| `visitados` | Lista de `(x, y, orientacion)` — usado por el watchdog |
+| `cvisitados` | Lista de celdas únicas `(x, y)` pisadas — sin repetir |
+| `totalinfovisitados` | Lista completa con percepción en cada paso |
+
+Al detenerse calcula y muestra el porcentaje de desempeño basado en las celdas visitadas.
 
 ## Registro de movimientos
 
-Al detenerse, se genera automáticamente el archivo `registro_agente.csv` en la misma carpeta del script con la siguiente estructura:
+Al detenerse se genera automáticamente `registro_agente.csv` en la misma carpeta del script:
 
 | Columna | Descripción |
 |---------|-------------|
@@ -54,7 +80,7 @@ Al detenerse, se genera automáticamente el archivo `registro_agente.csv` en la 
 | `f_cen` | Valor del sensor central |
 | `f_der` | Valor del sensor derecho |
 | `Regla` | Regla que se aplicó |
-| `Accion` | Acción ejecutada (AVANZAR / GIRAR_DERECHA / GIRAR_IZQUIERDA) |
+| `Accion` | Acción ejecutada |
 | `Pos_nueva` | Coordenada (x, y) después del movimiento |
 | `Ori_nueva` | Dirección después del movimiento |
 
